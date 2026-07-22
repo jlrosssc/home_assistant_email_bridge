@@ -86,6 +86,15 @@ The integration asks for:
 - `default_notify_service`: fallback notify service.
 - `recipients`: JSON mapping fake email recipients to HA notify services.
 
+After setup, the integration creates one diagnostic sensor per recipient, such as:
+
+```text
+sensor.home_assistant_email_bridge_dad
+sensor.home_assistant_email_bridge_critical
+```
+
+Each recipient entity shows the local fake email address, configured aliases, notify services, and title prefix. This makes established recipients visible in Home Assistant instead of hiding all of them only inside one settings list.
+
 After setup, open:
 
 ```text
@@ -96,6 +105,7 @@ Available actions:
 
 - `View local email addresses`: shows which fake email address a server or service should use.
 - `Add or update recipient`: creates a recipient and lets you pick an active notify service from a dropdown.
+- `Edit recipient`: edits one existing recipient at a time.
 - `Remove recipient`: deletes a mapping.
 - `Send test notification`: sends a test with a separate subject and message body.
 - `Edit raw JSON`: advanced bulk editing.

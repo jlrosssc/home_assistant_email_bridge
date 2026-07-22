@@ -27,6 +27,7 @@
         "menu_options": {
           "view_addresses": "View local email addresses",
           "add_recipient": "Add or update recipient",
+          "edit_recipient": "Edit recipient",
           "remove_recipient": "Remove recipient",
           "send_test": "Send test notification",
           "edit_json": "Edit raw JSON"
@@ -41,6 +42,23 @@
         "description": "The recipient name is the fake email local part, such as dad in dad@ha-notify.local. The notify service list is populated from active Home Assistant notify services.",
         "data": {
           "recipient": "Recipient name",
+          "emails": "Fake email aliases",
+          "notify_service": "Notify service",
+          "fallback_services": "Fallback services",
+          "title_prefix": "Title prefix"
+        }
+      },
+      "edit_recipient": {
+        "title": "Edit recipient",
+        "description": "Choose one configured recipient to edit.",
+        "data": {
+          "recipient": "Recipient"
+        }
+      },
+      "edit_selected_recipient": {
+        "title": "Edit {recipient}",
+        "description": "Update this recipient's fake email aliases and Home Assistant notification targets.",
+        "data": {
           "emails": "Fake email aliases",
           "notify_service": "Notify service",
           "fallback_services": "Fallback services",
@@ -78,6 +96,13 @@
       "no_recipients": "There are no recipients configured.",
       "no_notify_service": "No configured notify service was available for this recipient.",
       "required": "This field is required."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "recipient": {
+        "name": "{recipient}"
+      }
     }
   }
 }

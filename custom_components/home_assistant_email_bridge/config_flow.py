@@ -91,6 +91,26 @@ def _recipient_address_summary(recipients: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _recipient_defaults(
+    recipient_key: str,
+    recipient: dict[str, Any],
+) -> dict[str, str]:
+    """Return form defaults for a recipient."""
+    emails = recipient.get("emails") or [f"{recipient_key}@ha-notify.local"]
+    if isinstance(emails, str):
+        emails = [emails]
+    notify_services = recipient.get("notify_services") or [
+        recipient.get("notify_service", "")
+    ]
+    notify_services = [str(service) for service in notify_services if service]
+    return {
+        "emails": ",".join(str(email) for email in emails),
+        "notify_service": notify_services[0] if notify_services else "",
+        "fallback_services": ",".join(notify_services[1:]),
+        "title_prefix": str(recipient.get("title_prefix", "")),
+    }
+
+
 class ConfigFlow(
     config_entries.ConfigFlow,
     domain=DOMAIN,
@@ -152,6 +172,7 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         self._config_entry = config_entry
+        self._edit_recipient_key: str | None = None
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         """Show the options menu."""
@@ -160,6 +181,7 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
             menu_options=[
                 "view_addresses",
                 "add_recipient",
+                "edit_recipient",
                 "remove_recipient",
                 "send_test",
                 "edit_json",
@@ -242,6 +264,102 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
                 }
             ),
             errors=errors,
+        )
+
+    async def async_step_edit_recipient(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ):
+        """Choose an existing recipient to edit."""
+        current = _current_config(self._config_entry)
+        recipients = current.get(CONF_RECIPIENTS, {})
+        recipient_names = sorted(recipients)
+
+        if user_input is not None:
+            self._edit_recipient_key = user_input["recipient"]
+            return await self.async_step_edit_selected_recipient()
+
+        if not recipient_names:
+            return self.async_show_form(
+                step_id="edit_recipient",
+                data_schema=vol.Schema({}),
+                errors={"base": "no_recipients"},
+            )
+
+        return self.async_show_form(
+            step_id="edit_recipient",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("recipient"): vol.In(recipient_names),
+                }
+            ),
+        )
+
+    async def async_step_edit_selected_recipient(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ):
+        """Edit a selected recipient mapping."""
+        errors: dict[str, str] = {}
+        current = _current_config(self._config_entry)
+        recipients = dict(current.get(CONF_RECIPIENTS, {}))
+        recipient_key = self._edit_recipient_key
+
+        if not recipient_key or recipient_key not in recipients:
+            return await self.async_step_edit_recipient()
+
+        if user_input is not None:
+            emails = _csv_to_list(user_input["emails"])
+            notify_services = [user_input["notify_service"]]
+            notify_services.extend(_csv_to_list(user_input.get("fallback_services", "")))
+
+            if not emails:
+                errors["emails"] = "required"
+            elif not notify_services or not all("." in item for item in notify_services):
+                errors["notify_services"] = "invalid_notify_services"
+            else:
+                recipients[recipient_key] = {
+                    "emails": emails,
+                    "notify_services": notify_services,
+                    "title_prefix": user_input.get("title_prefix", ""),
+                }
+                return self.async_create_entry(
+                    title="",
+                    data={
+                        CONF_DEFAULT_NOTIFY_SERVICE: current[
+                            CONF_DEFAULT_NOTIFY_SERVICE
+                        ],
+                        CONF_RECIPIENTS: recipients,
+                    },
+                )
+
+        defaults = _recipient_defaults(recipient_key, recipients[recipient_key])
+        notify_options = _notify_service_options(self.hass)
+        notify_default = defaults["notify_service"]
+        if notify_default not in notify_options:
+            notify_options = [notify_default, *notify_options]
+
+        return self.async_show_form(
+            step_id="edit_selected_recipient",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("emails", default=defaults["emails"]): str,
+                    vol.Required(
+                        "notify_service",
+                        default=notify_default,
+                    ): vol.In(notify_options),
+                    vol.Optional(
+                        "fallback_services",
+                        default=defaults["fallback_services"],
+                    ): str,
+                    vol.Optional(
+                        "title_prefix",
+                        default=defaults["title_prefix"],
+                    ): str,
+                }
+            ),
+            errors=errors,
+            description_placeholders={"recipient": recipient_key},
         )
 
     async def async_step_remove_recipient(

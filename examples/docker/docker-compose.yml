@@ -1,0 +1,18 @@
+services:
+  home-assistant-email-bridge:
+    image: python:3.11-slim
+    container_name: home-assistant-email-bridge
+    restart: unless-stopped
+    network_mode: host
+    working_dir: /app
+    command:
+      - python
+      - /app/ha_email_bridge.py
+      - --config
+      - /app/config.json
+      - --host
+      - 0.0.0.0
+      - --port
+      - "2525"
+    volumes:
+      - /opt/home-assistant-email-bridge:/app:ro

@@ -1,0 +1,15 @@
+{
+  "source": "dad",
+  "webhook_url": "http://127.0.0.1:8125/api/webhook/ha_email_bridge_dad",
+  "default_recipient": "dad",
+  "recipients": {
+    "dad": {
+      "address": "dad@ha-notify.local",
+      "severity": "normal"
+    },
+    "critical": {
+      "address": "critical@ha-notify.local",
+      "severity": "critical"
+    }
+  }
+}

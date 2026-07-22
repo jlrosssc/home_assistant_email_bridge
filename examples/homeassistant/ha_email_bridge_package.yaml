@@ -1,0 +1,48 @@
+automation:
+  - id: ha_email_bridge
+    alias: "Home Assistant Email Bridge"
+    mode: queued
+    max: 20
+    trigger:
+      - platform: webhook
+        webhook_id: ha_email_bridge_dad
+        allowed_methods:
+          - POST
+        local_only: true
+    action:
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.json['to'] == 'dad' }}"
+            sequence:
+              # Replace this with your real mobile app notify service, for example:
+              # - service: notify.mobile_app_dads_iphone
+              #   data:
+              #     title: "{{ trigger.json['subject'] if 'subject' in trigger.json else 'Server notification' }}"
+              #     message: "{{ trigger.json['message'] if 'message' in trigger.json else '' }}"
+              - service: persistent_notification.create
+                data:
+                  title: "{{ trigger.json['subject'] if 'subject' in trigger.json else 'Server notification' }}"
+                  message: |
+                    Source: {{ trigger.json['source'] if 'source' in trigger.json else 'unknown' }}
+                    To: {{ trigger.json['to'] if 'to' in trigger.json else 'unknown' }}
+                    From: {{ trigger.json['from'] if 'from' in trigger.json else 'unknown' }}
+                    Severity: {{ trigger.json['severity'] if 'severity' in trigger.json else 'normal' }}
+
+                    {{ trigger.json['message'] if 'message' in trigger.json else '' }}
+                  notification_id: "ha_email_bridge_dad"
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.json['to'] == 'critical' }}"
+            sequence:
+              - service: persistent_notification.create
+                data:
+                  title: "Critical: {{ trigger.json['subject'] if 'subject' in trigger.json else 'Server notification' }}"
+                  message: "{{ trigger.json['message'] if 'message' in trigger.json else '' }}"
+                  notification_id: "ha_email_bridge_critical"
+        default:
+          - service: persistent_notification.create
+            data:
+              title: "{{ trigger.json['subject'] if 'subject' in trigger.json else 'Server notification' }}"
+              message: "{{ trigger.json['message'] if 'message' in trigger.json else '' }}"
+              notification_id: "ha_email_bridge_default"

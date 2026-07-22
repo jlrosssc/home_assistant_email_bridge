@@ -5,6 +5,10 @@ It receives fake/local email such as `dad@ha-notify.local`, parses the subject a
 
 The bridge is intended for LAN/local use. Do not expose it to the public internet.
 
+The SMTP bridge rejects unknown `ha-notify.local` recipients. If `joe` and `critical`
+are configured, then `henry@ha-notify.local` receives an SMTP `550 Unknown
+ha-notify.local recipient` response and the message is not accepted.
+
 ## How Recipient Mapping Works
 
 Home Assistant does not automatically know that `dad@ha-notify.local` means a specific Home Assistant user.
@@ -59,6 +63,33 @@ Security: none
 Authentication: none
 To: dad@ha-notify.local
 ```
+
+## Local `mail` Command Setup
+
+On CentOS/RHEL systems with `mailx`, you can make local terminal and cron mail
+use the bridge directly by adding this to `/etc/mail.rc`:
+
+```text
+# HA Email Bridge local SMTP defaults
+set smtp=smtp://127.0.0.1:2525
+set from=cron@server.local
+set sendwait
+```
+
+Then normal local mail works:
+
+```bash
+echo "Backup completed" | mail -s "Backup complete" joe@ha-notify.local
+```
+
+For cron jobs, set `MAILTO` to a configured endpoint/user:
+
+```cron
+MAILTO=joe@ha-notify.local
+```
+
+Because `sendwait` is enabled, scripts get a non-zero exit code if the bridge
+rejects the recipient.
 
 ## Home Assistant Integration
 

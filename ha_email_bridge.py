@@ -26,6 +26,16 @@ class BridgeConfig:
             return local
         return local or self.default_recipient
 
+    def is_valid_recipient(self, address):
+        local, _, domain = address.lower().partition("@")
+        if domain and domain != "ha-notify.local":
+            return False
+        if not local:
+            return False
+        if not self.recipients:
+            return True
+        return local in self.recipients
+
 
 class SmtpSession:
     def __init__(self):
@@ -56,9 +66,16 @@ class SmtpHandler(socketserver.StreamRequestHandler):
                 self.session.mail_from = extract_address(line[10:])
                 self.write_line("250 OK")
             elif upper.startswith("RCPT TO:"):
-                self.session.rcpt_to.append(extract_address(line[8:]))
+                recipient = extract_address(line[8:])
+                if not self.server.bridge_config.is_valid_recipient(recipient):
+                    self.write_line("550 Unknown ha-notify.local recipient")
+                    continue
+                self.session.rcpt_to.append(recipient)
                 self.write_line("250 OK")
             elif upper == "DATA":
+                if not self.session.rcpt_to:
+                    self.write_line("554 No valid recipients")
+                    continue
                 self.write_line("354 End data with <CR><LF>.<CR><LF>")
                 self.read_message_data()
                 try:

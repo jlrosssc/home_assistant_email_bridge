@@ -35,12 +35,18 @@ def _parse_recipients(value: str) -> dict[str, Any]:
         if not isinstance(recipient, dict):
             raise ValueError(f"recipient {key} must be an object")
         notify_service = recipient.get("notify_service")
-        if not isinstance(notify_service, str) or "." not in notify_service:
+        notify_services = recipient.get("notify_services")
+        if notify_services is not None:
+            if not isinstance(notify_services, list) or not notify_services:
+                raise ValueError(f"recipient {key} notify_services must be a non-empty list")
+            if not all(isinstance(item, str) and "." in item for item in notify_services):
+                raise ValueError(f"recipient {key} notify_services need service names like notify.mobile_app_phone")
+        elif not isinstance(notify_service, str) or "." not in notify_service:
             raise ValueError(f"recipient {key} needs notify_service like notify.mobile_app_phone")
     return parsed
 
 
-class HomeAssistantEmailBridgeConfigFlow(
+class ConfigFlow(
     config_entries.ConfigFlow,
     domain=DOMAIN,
 ):

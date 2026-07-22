@@ -25,18 +25,25 @@
         "title": "Home Assistant Email Bridge options",
         "description": "Manage fake email recipients and their Home Assistant notify services.",
         "menu_options": {
+          "view_addresses": "View local email addresses",
           "add_recipient": "Add or update recipient",
           "remove_recipient": "Remove recipient",
+          "send_test": "Send test notification",
           "edit_json": "Edit raw JSON"
         }
       },
+      "view_addresses": {
+        "title": "Local email addresses",
+        "description": "Use these settings for a server-based device or service on the Home Assistant host:\n\nSMTP server: {smtp_host}\nSMTP port: {smtp_port}\nSecurity: none\nAuthentication: none\n\nConfigured recipients:\n{addresses}"
+      },
       "add_recipient": {
         "title": "Add or update recipient",
-        "description": "The recipient name is the fake email local part, such as dad in dad@ha-notify.local.",
+        "description": "The recipient name is the fake email local part, such as dad in dad@ha-notify.local. The notify service list is populated from active Home Assistant notify services.",
         "data": {
           "recipient": "Recipient name",
           "emails": "Fake email aliases",
-          "notify_services": "Notify services",
+          "notify_service": "Notify service",
+          "fallback_services": "Fallback services",
           "title_prefix": "Title prefix"
         }
       },
@@ -45,6 +52,15 @@
         "description": "Remove a fake email recipient mapping.",
         "data": {
           "recipient": "Recipient"
+        }
+      },
+      "send_test": {
+        "title": "Send test notification",
+        "description": "Send a test notification with a subject and message body.",
+        "data": {
+          "recipient": "Recipient",
+          "subject": "Subject",
+          "message": "Message"
         }
       },
       "edit_json": {
@@ -58,8 +74,9 @@
     },
     "error": {
       "invalid_recipients": "Recipients must be valid JSON. Each recipient needs notify_service or notify_services.",
-      "invalid_notify_services": "Notify services must be comma-separated service names such as notify.mobile_app_dads_iphone,persistent_notification.create.",
-      "no_recipients": "There are no recipients to remove.",
+      "invalid_notify_services": "Fallback services must be comma-separated service names such as notify.mobile_app_dads_iphone,persistent_notification.create.",
+      "no_recipients": "There are no recipients configured.",
+      "no_notify_service": "No configured notify service was available for this recipient.",
       "required": "This field is required."
     }
   }

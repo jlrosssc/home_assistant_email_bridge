@@ -63,6 +63,34 @@ def _current_config(config_entry: config_entries.ConfigEntry) -> dict[str, Any]:
     }
 
 
+def _notify_service_options(hass) -> list[str]:
+    services = hass.services.async_services()
+    notify_services = [
+        f"notify.{service}"
+        for service in sorted(services.get("notify", {}))
+    ]
+    if "persistent_notification.create" not in notify_services:
+        notify_services.append("persistent_notification.create")
+    return notify_services or ["persistent_notification.create"]
+
+
+def _recipient_address_summary(recipients: dict[str, Any]) -> str:
+    if not recipients:
+        return "No recipients are configured."
+    lines = []
+    for key in sorted(recipients):
+        recipient = recipients[key]
+        emails = recipient.get("emails") or [f"{key}@ha-notify.local"]
+        if isinstance(emails, str):
+            emails = [emails]
+        services = recipient.get("notify_services") or [recipient.get("notify_service", "")]
+        lines.append(
+            f"{key}: {', '.join(str(email) for email in emails)} -> "
+            f"{', '.join(str(service) for service in services if service)}"
+        )
+    return "\n".join(lines)
+
+
 class ConfigFlow(
     config_entries.ConfigFlow,
     domain=DOMAIN,
@@ -123,17 +151,40 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
     """Handle options for Home Assistant Email Bridge."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self.config_entry = config_entry
+        self._config_entry = config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         """Show the options menu."""
         return self.async_show_menu(
             step_id="init",
             menu_options=[
+                "view_addresses",
                 "add_recipient",
                 "remove_recipient",
+                "send_test",
                 "edit_json",
             ],
+        )
+
+    async def async_step_view_addresses(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ):
+        """Show currently configured local email addresses."""
+        current = _current_config(self._config_entry)
+        if user_input is not None:
+            return await self.async_step_init()
+
+        return self.async_show_form(
+            step_id="view_addresses",
+            data_schema=vol.Schema({}),
+            description_placeholders={
+                "smtp_host": "127.0.0.1",
+                "smtp_port": "2525",
+                "addresses": _recipient_address_summary(
+                    current.get(CONF_RECIPIENTS, {})
+                ),
+            },
         )
 
     async def async_step_add_recipient(
@@ -142,13 +193,14 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
     ):
         """Add or update a recipient mapping."""
         errors: dict[str, str] = {}
-        current = _current_config(self.config_entry)
+        current = _current_config(self._config_entry)
         recipients = dict(current.get(CONF_RECIPIENTS, {}))
 
         if user_input is not None:
             recipient_key = user_input["recipient"].strip().lower()
             emails = _csv_to_list(user_input["emails"])
-            notify_services = _csv_to_list(user_input["notify_services"])
+            notify_services = [user_input["notify_service"]]
+            notify_services.extend(_csv_to_list(user_input.get("fallback_services", "")))
 
             if not recipient_key:
                 errors["recipient"] = "required"
@@ -179,8 +231,12 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
                     vol.Required("recipient"): str,
                     vol.Required("emails", default="dad@ha-notify.local,dad"): str,
                     vol.Required(
-                        "notify_services",
-                        default="notify.mobile_app_joe_ross_iphone,persistent_notification.create",
+                        "notify_service",
+                        default=_notify_service_options(self.hass)[0],
+                    ): vol.In(_notify_service_options(self.hass)),
+                    vol.Optional(
+                        "fallback_services",
+                        default="persistent_notification.create",
                     ): str,
                     vol.Optional("title_prefix", default=""): str,
                 }
@@ -193,7 +249,7 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
         user_input: dict[str, Any] | None = None,
     ):
         """Remove a recipient mapping."""
-        current = _current_config(self.config_entry)
+        current = _current_config(self._config_entry)
         recipients = dict(current.get(CONF_RECIPIENTS, {}))
         recipient_names = sorted(recipients)
 
@@ -227,7 +283,7 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
     async def async_step_edit_json(self, user_input: dict[str, Any] | None = None):
         """Edit raw JSON options."""
         errors: dict[str, str] = {}
-        current = _current_config(self.config_entry)
+        current = _current_config(self._config_entry)
 
         if user_input is not None:
             try:
@@ -260,6 +316,81 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
                         default=_recipients_to_text(
                             current.get(CONF_RECIPIENTS, DEFAULT_RECIPIENTS)
                         ),
+                    ): str,
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_send_test(self, user_input: dict[str, Any] | None = None):
+        """Send a test notification through a configured recipient."""
+        errors: dict[str, str] = {}
+        current = _current_config(self._config_entry)
+        recipients = current.get(CONF_RECIPIENTS, {})
+        recipient_names = sorted(recipients)
+
+        if not recipient_names:
+            return self.async_show_form(
+                step_id="send_test",
+                data_schema=vol.Schema({}),
+                errors={"base": "no_recipients"},
+            )
+
+        if user_input is not None:
+            recipient_name = user_input["recipient"]
+            recipient = recipients.get(recipient_name)
+            if recipient is None:
+                errors["recipient"] = "required"
+            else:
+                subject = user_input["subject"]
+                message = user_input["message"]
+                notify_services = recipient.get("notify_services") or [
+                    recipient.get("notify_service")
+                    or current.get(CONF_DEFAULT_NOTIFY_SERVICE, DEFAULT_NOTIFY_SERVICE)
+                ]
+                title_prefix = recipient.get("title_prefix", "")
+                delivered = False
+                for notify_service in notify_services:
+                    if notify_service == "persistent_notification.create":
+                        await self.hass.services.async_call(
+                            "persistent_notification",
+                            "create",
+                            {
+                                "title": f"{title_prefix}{subject}",
+                                "message": message,
+                                "notification_id": f"home_assistant_email_bridge_test_{recipient_name}",
+                            },
+                            blocking=True,
+                        )
+                        delivered = True
+                        break
+                    domain, service = notify_service.split(".", 1)
+                    if not self.hass.services.has_service(domain, service):
+                        continue
+                    await self.hass.services.async_call(
+                        domain,
+                        service,
+                        {
+                            "title": f"{title_prefix}{subject}",
+                            "message": message,
+                        },
+                        blocking=True,
+                    )
+                    delivered = True
+                    break
+                if delivered:
+                    return self.async_create_entry(title="", data=current)
+                errors["base"] = "no_notify_service"
+
+        return self.async_show_form(
+            step_id="send_test",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("recipient"): vol.In(recipient_names),
+                    vol.Required("subject", default="Home Assistant Email Bridge test"): str,
+                    vol.Required(
+                        "message",
+                        default="This is a test notification from Home Assistant Email Bridge.",
                     ): str,
                 }
             ),

@@ -86,6 +86,20 @@ The integration asks for:
 - `default_notify_service`: fallback notify service.
 - `recipients`: JSON mapping fake email recipients to HA notify services.
 
+After setup, open:
+
+```text
+Settings > Devices & services > Home Assistant Email Bridge > Configure
+```
+
+Available actions:
+
+- `View local email addresses`: shows which fake email address a server or service should use.
+- `Add or update recipient`: creates a recipient and lets you pick an active notify service from a dropdown.
+- `Remove recipient`: deletes a mapping.
+- `Send test notification`: sends a test with a separate subject and message body.
+- `Edit raw JSON`: advanced bulk editing.
+
 Example recipient mapping:
 
 ```json

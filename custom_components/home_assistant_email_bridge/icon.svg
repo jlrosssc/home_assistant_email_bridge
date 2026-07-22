@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Home Assistant Email Bridge">
+  <rect width="256" height="256" rx="48" fill="#03a9f4"/>
+  <path d="M43 78h170c9 0 16 7 16 16v96c0 9-7 16-16 16H43c-9 0-16-7-16-16V94c0-9 7-16 16-16Z" fill="#fff"/>
+  <path d="M39 91l89 65 89-65" fill="none" stroke="#03a9f4" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M86 177h84" stroke="#03a9f4" stroke-width="15" stroke-linecap="round"/>
+  <path d="M128 37l52 45H76l52-45Z" fill="#fff"/>
+</svg>

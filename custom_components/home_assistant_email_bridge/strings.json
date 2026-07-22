@@ -74,9 +74,13 @@
       },
       "send_test": {
         "title": "Send test notification",
-        "description": "Send a test notification with a subject and message body.",
+        "description": "Send a fully formed test message through the same dispatch path used by the SMTP bridge.",
         "data": {
           "recipient": "Recipient",
+          "recipient_address": "Destination email address",
+          "source": "Source",
+          "from_address": "From address",
+          "severity": "Severity",
           "subject": "Subject",
           "message": "Message"
         }

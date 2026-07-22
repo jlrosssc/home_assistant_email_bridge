@@ -107,7 +107,7 @@ Available actions:
 - `Add or update recipient`: creates a recipient and lets you pick an active notify service from a dropdown.
 - `Edit recipient`: edits one existing recipient at a time.
 - `Remove recipient`: deletes a mapping.
-- `Send test notification`: sends a test with a separate subject and message body.
+- `Send test notification`: sends a fully formed test message with destination email, source, from address, severity, subject, and message body through the same dispatch path used by the SMTP bridge.
 - `Edit raw JSON`: advanced bulk editing.
 
 Example recipient mapping:

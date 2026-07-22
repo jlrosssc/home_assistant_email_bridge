@@ -111,6 +111,14 @@ def _recipient_defaults(
     }
 
 
+def _primary_email(recipient_key: str, recipient: dict[str, Any]) -> str:
+    """Return the primary fake email address for a recipient."""
+    emails = recipient.get("emails") or [f"{recipient_key}@ha-notify.local"]
+    if isinstance(emails, str):
+        return emails
+    return str(emails[0]) if emails else f"{recipient_key}@ha-notify.local"
+
+
 class ConfigFlow(
     config_entries.ConfigFlow,
     domain=DOMAIN,
@@ -441,7 +449,7 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
         )
 
     async def async_step_send_test(self, user_input: dict[str, Any] | None = None):
-        """Send a test notification through a configured recipient."""
+        """Send a fully formed test message through the normal dispatch path."""
         errors: dict[str, str] = {}
         current = _current_config(self._config_entry)
         recipients = current.get(CONF_RECIPIENTS, {})
@@ -460,55 +468,54 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
             if recipient is None:
                 errors["recipient"] = "required"
             else:
-                subject = user_input["subject"]
-                message = user_input["message"]
-                notify_services = recipient.get("notify_services") or [
-                    recipient.get("notify_service")
-                    or current.get(CONF_DEFAULT_NOTIFY_SERVICE, DEFAULT_NOTIFY_SERVICE)
-                ]
-                title_prefix = recipient.get("title_prefix", "")
-                delivered = False
-                for notify_service in notify_services:
-                    if notify_service == "persistent_notification.create":
-                        await self.hass.services.async_call(
-                            "persistent_notification",
-                            "create",
-                            {
-                                "title": f"{title_prefix}{subject}",
-                                "message": message,
-                                "notification_id": f"home_assistant_email_bridge_test_{recipient_name}",
-                            },
-                            blocking=True,
-                        )
-                        delivered = True
-                        break
-                    domain, service = notify_service.split(".", 1)
-                    if not self.hass.services.has_service(domain, service):
-                        continue
-                    await self.hass.services.async_call(
-                        domain,
-                        service,
-                        {
-                            "title": f"{title_prefix}{subject}",
-                            "message": message,
-                        },
-                        blocking=True,
-                    )
-                    delivered = True
-                    break
-                if delivered:
+                from . import _async_dispatch_message
+
+                result = await _async_dispatch_message(
+                    self.hass,
+                    current,
+                    {
+                        "to": recipient_name,
+                        "recipient_address": user_input["recipient_address"],
+                        "source": user_input["source"],
+                        "from": user_input["from_address"],
+                        "severity": user_input["severity"],
+                        "subject": user_input["subject"],
+                        "message": user_input["message"],
+                        "dedupe_key": (
+                            f"ha-ui-test:{recipient_name}:{user_input['subject']}"
+                        ),
+                    },
+                )
+                if result.get("ok"):
                     return self.async_create_entry(title="", data=current)
                 errors["base"] = "no_notify_service"
 
+        default_recipient = recipient_names[0]
+        default_address = _primary_email(default_recipient, recipients[default_recipient])
         return self.async_show_form(
             step_id="send_test",
             data_schema=vol.Schema(
                 {
                     vol.Required("recipient"): vol.In(recipient_names),
-                    vol.Required("subject", default="Home Assistant Email Bridge test"): str,
+                    vol.Required("recipient_address", default=default_address): str,
+                    vol.Required("source", default="home_assistant_ui"): str,
+                    vol.Required(
+                        "from_address",
+                        default="home-assistant-email-bridge@test.local",
+                    ): str,
+                    vol.Required("severity", default="normal"): vol.In(
+                        ["normal", "critical"]
+                    ),
+                    vol.Required(
+                        "subject",
+                        default="Home Assistant Email Bridge test",
+                    ): str,
                     vol.Required(
                         "message",
-                        default="This is a test notification from Home Assistant Email Bridge.",
+                        default=(
+                            "This is a fully formed test message from "
+                            "Home Assistant Email Bridge."
+                        ),
                     ): str,
                 }
             ),

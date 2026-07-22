@@ -46,7 +46,7 @@
           "notify_service": "Primary notification target",
           "fallback_services": "Fallback services",
           "title_prefix": "Title prefix",
-          "create_persistent_copy": "Keep full message in Home Assistant"
+          "create_persistent_copy": "Also create a Home Assistant notification copy"
         }
       },
       "edit_recipient": {
@@ -64,7 +64,7 @@
           "notify_service": "Primary notification target",
           "fallback_services": "Fallback services",
           "title_prefix": "Title prefix",
-          "create_persistent_copy": "Keep full message in Home Assistant"
+          "create_persistent_copy": "Also create a Home Assistant notification copy"
         }
       },
       "remove_recipient": {

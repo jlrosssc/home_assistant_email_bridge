@@ -97,6 +97,8 @@ Each endpoint/user entity shows the local fake email address, configured aliases
 
 Notifications include the bridge source in the title, such as `[hross] Container offline` or `[dad] Backup complete`, so messages from multiple servers are easy to tell apart.
 
+The endpoint/user entity always keeps the last full message in its attributes. Open the endpoint entity, for example `sensor.home_assistant_email_bridge_joe`, to read the full title, body, source, sender, severity, and received time.
+
 After setup, open:
 
 ```text
@@ -112,7 +114,7 @@ Available actions:
 - `Remove endpoint/user`: deletes one mapping.
 - `Edit raw JSON`: advanced bulk editing.
 
-Enable `Keep full message in Home Assistant` on an endpoint if you want phone pushes to keep a matching Home Assistant notification copy. Phone operating systems can truncate popup text; the HA copy keeps the full message available after opening Home Assistant.
+Enable `Also create a Home Assistant notification copy` only if you also want a matching item in HA's notification drawer. Phone operating systems can truncate popup text; the endpoint entity is the stable full-message record.
 
 Example recipient mapping:
 
@@ -121,12 +123,12 @@ Example recipient mapping:
   "dad": {
     "notify_service": "notify.mobile_app_dads_iphone",
     "title_prefix": "",
-    "create_persistent_copy": true
+    "create_persistent_copy": false
   },
   "critical": {
     "notify_service": "notify.mobile_app_dads_iphone",
     "title_prefix": "Critical: ",
-    "create_persistent_copy": true
+    "create_persistent_copy": false
   }
 }
 ```

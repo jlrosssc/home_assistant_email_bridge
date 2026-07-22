@@ -4,6 +4,7 @@ CONF_WEBHOOK_ID = "webhook_id"
 CONF_RECIPIENTS = "recipients"
 CONF_DEFAULT_NOTIFY_SERVICE = "default_notify_service"
 CONF_CREATE_PERSISTENT = "create_persistent_notification"
+SIGNAL_MESSAGE_RECEIVED = "home_assistant_email_bridge_message_received"
 
 DEFAULT_WEBHOOK_ID = "ha_email_bridge"
 DEFAULT_NOTIFY_SERVICE = "persistent_notification.create"

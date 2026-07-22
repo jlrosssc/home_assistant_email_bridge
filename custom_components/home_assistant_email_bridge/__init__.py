@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import logging
 from typing import Any
 
@@ -10,6 +11,7 @@ from aiohttp import web
 from homeassistant.components import persistent_notification, webhook
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import (
     CONF_DEFAULT_NOTIFY_SERVICE,
@@ -17,6 +19,7 @@ from .const import (
     CONF_WEBHOOK_ID,
     DEFAULT_NOTIFY_SERVICE,
     DOMAIN,
+    SIGNAL_MESSAGE_RECEIVED,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -59,6 +62,7 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Home Assistant Email Bridge from a config entry."""
+    hass.data.setdefault(DOMAIN, {}).setdefault(entry.entry_id, {"messages": {}})
     webhook_id = entry.data[CONF_WEBHOOK_ID]
 
     async def handle_webhook(
@@ -72,7 +76,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.warning("Invalid email bridge payload: %s", err)
             return web.json_response({"ok": False, "error": "invalid_json"}, status=400)
 
-        result = await _async_dispatch_message(hass, {**entry.data, **entry.options}, payload)
+        result = await _async_dispatch_message(
+            hass,
+            {**entry.data, **entry.options, "_entry_id": entry.entry_id},
+            payload,
+        )
         return web.json_response(result)
 
     webhook.async_register(
@@ -94,6 +102,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not unload_ok:
         return False
     webhook.async_unregister(hass, entry.data[CONF_WEBHOOK_ID])
+    hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
     return True
 
 
@@ -142,6 +151,7 @@ async def _async_dispatch_message(
     message = _format_message(payload)
     notification_id = f"home_assistant_email_bridge_{recipient_key}"
     notify_data = _notify_data(payload)
+    _store_last_message(hass, config, recipient_key, title, message, payload)
 
     if recipient.get("create_persistent_copy"):
         await _async_persistent(
@@ -234,13 +244,46 @@ def _notify_data(payload: dict[str, Any]) -> dict[str, Any]:
     source = str(payload.get("source") or "server").strip() or "server"
     severity = str(payload.get("severity") or "normal").strip().lower()
     data: dict[str, Any] = {
-        "url": "/config/notifications",
         "tag": str(payload.get("dedupe_key") or f"home_assistant_email_bridge:{source}"),
         "group": f"home_assistant_email_bridge_{source}",
     }
     if severity == "critical":
         data["push"] = {"interruption-level": "time-sensitive"}
     return data
+
+
+def _store_last_message(
+    hass: HomeAssistant,
+    config: dict[str, Any],
+    recipient_key: str,
+    title: str,
+    message: str,
+    payload: dict[str, Any],
+) -> None:
+    """Store the most recent full message for the recipient entity."""
+    entry_id = config.get("_entry_id")
+    if not entry_id:
+        return
+    bridge_data = hass.data.setdefault(DOMAIN, {}).setdefault(
+        entry_id,
+        {"messages": {}},
+    )
+    bridge_data.setdefault("messages", {})[recipient_key] = {
+        "title": title,
+        "message": message,
+        "subject": str(payload.get("subject") or "Server notification"),
+        "source": str(payload.get("source") or "unknown"),
+        "from": str(payload.get("from") or "unknown"),
+        "severity": str(payload.get("severity") or "normal"),
+        "recipient_address": str(payload.get("recipient_address") or ""),
+        "received_at": datetime.now(UTC).isoformat(),
+    }
+    async_dispatcher_send(
+        hass,
+        SIGNAL_MESSAGE_RECEIVED,
+        entry_id,
+        recipient_key,
+    )
 
 
 def _format_message(payload: dict[str, Any]) -> str:

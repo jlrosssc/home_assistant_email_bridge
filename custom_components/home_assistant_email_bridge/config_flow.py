@@ -94,7 +94,7 @@ def _recipient_address_summary(recipients: dict[str, Any]) -> str:
 def _recipient_defaults(
     recipient_key: str,
     recipient: dict[str, Any],
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """Return form defaults for a recipient."""
     emails = recipient.get("emails") or [f"{recipient_key}@ha-notify.local"]
     if isinstance(emails, str):
@@ -108,6 +108,7 @@ def _recipient_defaults(
         "notify_service": notify_services[0] if notify_services else "",
         "fallback_services": ",".join(notify_services[1:]),
         "title_prefix": str(recipient.get("title_prefix", "")),
+        "create_persistent_copy": bool(recipient.get("create_persistent_copy")),
     }
 
 
@@ -244,6 +245,10 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
                     "emails": emails,
                     "notify_services": notify_services,
                     "title_prefix": user_input.get("title_prefix", ""),
+                    "create_persistent_copy": user_input.get(
+                        "create_persistent_copy",
+                        True,
+                    ),
                 }
                 return self.async_create_entry(
                     title="",
@@ -270,6 +275,7 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
                         default="persistent_notification.create",
                     ): str,
                     vol.Optional("title_prefix", default=""): str,
+                    vol.Optional("create_persistent_copy", default=True): bool,
                 }
             ),
             errors=errors,
@@ -331,6 +337,10 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
                     "emails": emails,
                     "notify_services": notify_services,
                     "title_prefix": user_input.get("title_prefix", ""),
+                    "create_persistent_copy": user_input.get(
+                        "create_persistent_copy",
+                        False,
+                    ),
                 }
                 return self.async_create_entry(
                     title="",
@@ -365,6 +375,10 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
                         "title_prefix",
                         default=defaults["title_prefix"],
                     ): str,
+                    vol.Optional(
+                        "create_persistent_copy",
+                        default=defaults["create_persistent_copy"],
+                    ): bool,
                 }
             ),
             errors=errors,

@@ -95,6 +95,8 @@ sensor.home_assistant_email_bridge_critical
 
 Each endpoint/user entity shows the local fake email address, configured aliases, notify services, and title prefix. This makes established endpoints visible in Home Assistant instead of hiding all of them only inside one settings list.
 
+Notifications include the bridge source in the title, such as `[hross] Container offline` or `[dad] Backup complete`, so messages from multiple servers are easy to tell apart.
+
 After setup, open:
 
 ```text
@@ -110,17 +112,21 @@ Available actions:
 - `Remove endpoint/user`: deletes one mapping.
 - `Edit raw JSON`: advanced bulk editing.
 
+Enable `Keep full message in Home Assistant` on an endpoint if you want phone pushes to keep a matching Home Assistant notification copy. Phone operating systems can truncate popup text; the HA copy keeps the full message available after opening Home Assistant.
+
 Example recipient mapping:
 
 ```json
 {
   "dad": {
     "notify_service": "notify.mobile_app_dads_iphone",
-    "title_prefix": ""
+    "title_prefix": "",
+    "create_persistent_copy": true
   },
   "critical": {
     "notify_service": "notify.mobile_app_dads_iphone",
-    "title_prefix": "Critical: "
+    "title_prefix": "Critical: ",
+    "create_persistent_copy": true
   }
 }
 ```

@@ -138,7 +138,18 @@ async def _async_dispatch_message(
         ]
     title_prefix = recipient.get("title_prefix", "")
     subject = str(payload.get("subject") or "Server notification")
+    title = _format_title(title_prefix, subject, payload)
     message = _format_message(payload)
+    notification_id = f"home_assistant_email_bridge_{recipient_key}"
+    notify_data = _notify_data(payload)
+
+    if recipient.get("create_persistent_copy"):
+        await _async_persistent(
+            hass,
+            title,
+            message,
+            notification_id,
+        )
 
     delivered_service = None
     last_error = None
@@ -146,9 +157,9 @@ async def _async_dispatch_message(
         if notify_service == "persistent_notification.create":
             await _async_persistent(
                 hass,
-                f"{title_prefix}{subject}",
+                title,
                 message,
-                f"home_assistant_email_bridge_{recipient_key}",
+                notification_id,
             )
             delivered_service = notify_service
             break
@@ -162,21 +173,37 @@ async def _async_dispatch_message(
                 domain,
                 service,
                 {
-                    "title": f"{title_prefix}{subject}",
+                    "title": title,
                     "message": message,
+                    "data": notify_data,
                 },
                 blocking=True,
             )
         except Exception as err:  # noqa: BLE001 - try fallback services
-            last_error = str(err)
-            continue
+            if notify_data:
+                try:
+                    await hass.services.async_call(
+                        domain,
+                        service,
+                        {
+                            "title": title,
+                            "message": message,
+                        },
+                        blocking=True,
+                    )
+                except Exception as retry_err:  # noqa: BLE001 - try fallback services
+                    last_error = str(retry_err)
+                    continue
+            else:
+                last_error = str(err)
+                continue
         delivered_service = notify_service
         break
 
     if delivered_service is None:
         await _async_persistent(
             hass,
-            f"Email bridge delivery failed: {subject}",
+            f"Email bridge delivery failed: {title}",
             f"Recipient: {recipient_key}\nError: {last_error}\n\n{message}",
             f"home_assistant_email_bridge_failed_{recipient_key}",
         )
@@ -189,6 +216,31 @@ async def _async_dispatch_message(
         subject,
     )
     return {"ok": True, "to": recipient_key, "notify_service": delivered_service}
+
+
+def _format_title(
+    title_prefix: str,
+    subject: str,
+    payload: dict[str, Any],
+) -> str:
+    """Format the notification title with the source server name."""
+    source = str(payload.get("source") or "").strip()
+    source_prefix = f"[{source}] " if source else ""
+    return f"{title_prefix}{source_prefix}{subject}"
+
+
+def _notify_data(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return optional mobile-app notification metadata."""
+    source = str(payload.get("source") or "server").strip() or "server"
+    severity = str(payload.get("severity") or "normal").strip().lower()
+    data: dict[str, Any] = {
+        "url": "/config/notifications",
+        "tag": str(payload.get("dedupe_key") or f"home_assistant_email_bridge:{source}"),
+        "group": f"home_assistant_email_bridge_{source}",
+    }
+    if severity == "critical":
+        data["push"] = {"interruption-level": "time-sensitive"}
+    return data
 
 
 def _format_message(payload: dict[str, Any]) -> str:

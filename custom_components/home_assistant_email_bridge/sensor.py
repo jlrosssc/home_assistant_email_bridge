@@ -64,6 +64,9 @@ class EmailBridgeRecipientSensor(SensorEntity):
             "local_email_addresses": self._emails,
             "notify_services": self._notify_services,
             "title_prefix": self._recipient.get("title_prefix", ""),
+            "create_persistent_copy": bool(
+                self._recipient.get("create_persistent_copy")
+            ),
         }
 
     @property

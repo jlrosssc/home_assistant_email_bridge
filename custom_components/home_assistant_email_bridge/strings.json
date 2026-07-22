@@ -45,7 +45,8 @@
           "emails": "Accepted local email addresses",
           "notify_service": "Primary notification target",
           "fallback_services": "Fallback services",
-          "title_prefix": "Title prefix"
+          "title_prefix": "Title prefix",
+          "create_persistent_copy": "Keep full message in Home Assistant"
         }
       },
       "edit_recipient": {
@@ -62,7 +63,8 @@
           "emails": "Accepted local email addresses",
           "notify_service": "Primary notification target",
           "fallback_services": "Fallback services",
-          "title_prefix": "Title prefix"
+          "title_prefix": "Title prefix",
+          "create_persistent_copy": "Keep full message in Home Assistant"
         }
       },
       "remove_recipient": {

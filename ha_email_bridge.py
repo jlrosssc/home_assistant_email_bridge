@@ -24,7 +24,7 @@ class BridgeConfig:
         local = address.split("@", 1)[0].lower()
         if local in self.recipients:
             return local
-        return self.default_recipient
+        return local or self.default_recipient
 
 
 class SmtpSession:

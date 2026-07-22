@@ -97,8 +97,13 @@ async def _async_dispatch_message(
 ) -> dict[str, Any]:
     """Dispatch a received bridge payload to the mapped notify target."""
     recipient_key = str(payload.get("to") or "").strip().lower()
+    recipient_address = str(payload.get("recipient_address") or "").strip().lower()
     recipients = config.get(CONF_RECIPIENTS, {})
-    recipient = recipients.get(recipient_key)
+    recipient_key, recipient = _find_recipient(
+        recipients,
+        recipient_key,
+        recipient_address,
+    )
 
     if recipient is None:
         _LOGGER.warning("Unknown email bridge recipient: %s", recipient_key)
@@ -178,6 +183,28 @@ def _format_message(payload: dict[str, Any]) -> str:
     severity = payload.get("severity", "normal")
     body = payload.get("message", "")
     return f"Source: {source}\nFrom: {sender}\nSeverity: {severity}\n\n{body}"
+
+
+def _find_recipient(
+    recipients: dict[str, Any],
+    recipient_key: str,
+    recipient_address: str,
+) -> tuple[str, dict[str, Any] | None]:
+    """Find a recipient by alias or configured email address."""
+    if recipient_key in recipients:
+        return recipient_key, recipients[recipient_key]
+
+    normalized_address = recipient_address.strip().lower()
+    normalized_local = normalized_address.split("@", 1)[0]
+    for key, recipient in recipients.items():
+        emails = recipient.get("emails", [])
+        if isinstance(emails, str):
+            emails = [emails]
+        normalized_emails = [str(item).strip().lower() for item in emails]
+        if normalized_address in normalized_emails or normalized_local in normalized_emails:
+            return key, recipient
+
+    return recipient_key, None
 
 
 async def _async_persistent(

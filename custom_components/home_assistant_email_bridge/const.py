@@ -9,11 +9,13 @@ DEFAULT_WEBHOOK_ID = "ha_email_bridge"
 DEFAULT_NOTIFY_SERVICE = "persistent_notification.create"
 DEFAULT_RECIPIENTS = {
     "dad": {
-        "notify_service": "persistent_notification.create",
+        "emails": ["dad@ha-notify.local", "dad"],
+        "notify_services": ["persistent_notification.create"],
         "title_prefix": "",
     },
     "critical": {
-        "notify_service": "persistent_notification.create",
+        "emails": ["critical@ha-notify.local", "critical"],
+        "notify_services": ["persistent_notification.create"],
         "title_prefix": "Critical: ",
     },
 }

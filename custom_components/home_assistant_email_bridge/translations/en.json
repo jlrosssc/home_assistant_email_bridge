@@ -13,7 +13,7 @@
       }
     },
     "error": {
-      "invalid_recipients": "Recipients must be valid JSON. Each recipient needs a notify_service such as notify.mobile_app_dads_iphone or persistent_notification.create."
+      "invalid_recipients": "Recipients must be valid JSON. Each recipient needs notify_service or notify_services."
     },
     "abort": {
       "already_configured": "Home Assistant Email Bridge is already configured."
@@ -23,7 +23,33 @@
     "step": {
       "init": {
         "title": "Home Assistant Email Bridge options",
-        "description": "Update recipient mappings. The fake email local part, such as dad in dad@ha-notify.local, is matched to these keys.",
+        "description": "Manage fake email recipients and their Home Assistant notify services.",
+        "menu_options": {
+          "add_recipient": "Add or update recipient",
+          "remove_recipient": "Remove recipient",
+          "edit_json": "Edit raw JSON"
+        }
+      },
+      "add_recipient": {
+        "title": "Add or update recipient",
+        "description": "The recipient name is the fake email local part, such as dad in dad@ha-notify.local.",
+        "data": {
+          "recipient": "Recipient name",
+          "emails": "Fake email aliases",
+          "notify_services": "Notify services",
+          "title_prefix": "Title prefix"
+        }
+      },
+      "remove_recipient": {
+        "title": "Remove recipient",
+        "description": "Remove a fake email recipient mapping.",
+        "data": {
+          "recipient": "Recipient"
+        }
+      },
+      "edit_json": {
+        "title": "Edit raw JSON",
+        "description": "Update recipient mappings as JSON.",
         "data": {
           "default_notify_service": "Default notify service",
           "recipients": "Recipients JSON"
@@ -31,7 +57,10 @@
       }
     },
     "error": {
-      "invalid_recipients": "Recipients must be valid JSON. Each recipient needs a notify_service such as notify.mobile_app_dads_iphone or persistent_notification.create."
+      "invalid_recipients": "Recipients must be valid JSON. Each recipient needs notify_service or notify_services.",
+      "invalid_notify_services": "Notify services must be comma-separated service names such as notify.mobile_app_dads_iphone,persistent_notification.create.",
+      "no_recipients": "There are no recipients to remove.",
+      "required": "This field is required."
     }
   }
 }

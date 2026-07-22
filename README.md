@@ -44,15 +44,82 @@ Authentication: none
 To: dad@ha-notify.local
 ```
 
-For a Docker container or another LAN host:
+By default the Docker example binds to `127.0.0.1`, which means only programs running on the same host can connect.
+That is the safest default.
+
+For a Docker container or another LAN host, you must deliberately make the listener reachable, for example by changing the bridge host from `127.0.0.1` to a Docker-network address or to `0.0.0.0`.
+Only do this on a trusted network with firewall rules that keep port `2525` off the internet.
+
+If enabled for LAN/container access:
 
 ```text
-SMTP server: <home-assistant-host-ip>
+SMTP server: <bridge-host-ip>
 SMTP port: 2525
 Security: none
 Authentication: none
 To: dad@ha-notify.local
 ```
+
+## Home Assistant Integration
+
+The repo includes a real Home Assistant custom integration under:
+
+```text
+custom_components/home_assistant_email_bridge/
+```
+
+Install it by copying that folder into your Home Assistant config:
+
+```bash
+sudo cp -a custom_components/home_assistant_email_bridge /opt/homeassistant/config/custom_components/
+```
+
+Restart Home Assistant, then add it from:
+
+```text
+Settings > Devices & services > Add integration > Home Assistant Email Bridge
+```
+
+The integration asks for:
+
+- `webhook_id`: the local webhook path the SMTP bridge posts to.
+- `default_notify_service`: fallback notify service.
+- `recipients`: JSON mapping fake email recipients to HA notify services.
+
+Example recipient mapping:
+
+```json
+{
+  "dad": {
+    "notify_service": "notify.mobile_app_dads_iphone",
+    "title_prefix": ""
+  },
+  "critical": {
+    "notify_service": "notify.mobile_app_dads_iphone",
+    "title_prefix": "Critical: "
+  }
+}
+```
+
+With that mapping:
+
+```text
+dad@ha-notify.local
+```
+
+is translated by the SMTP bridge into:
+
+```json
+{"to": "dad"}
+```
+
+and the Home Assistant integration sends it through:
+
+```text
+notify.mobile_app_dads_iphone
+```
+
+The Home Assistant webhook is registered as `local_only`, so Home Assistant will reject non-local webhook calls. Keep the SMTP bridge local too unless you intentionally need LAN/container access.
 
 ## Install
 

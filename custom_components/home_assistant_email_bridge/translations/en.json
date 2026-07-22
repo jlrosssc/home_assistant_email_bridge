@@ -1,0 +1,37 @@
+{
+  "title": "Home Assistant Email Bridge",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Home Assistant Email Bridge",
+        "description": "Create a local webhook receiver for fake email notifications. Recipient names map to Home Assistant notify services.",
+        "data": {
+          "webhook_id": "Webhook ID",
+          "default_notify_service": "Default notify service",
+          "recipients": "Recipients JSON"
+        }
+      }
+    },
+    "error": {
+      "invalid_recipients": "Recipients must be valid JSON. Each recipient needs a notify_service such as notify.mobile_app_dads_iphone or persistent_notification.create."
+    },
+    "abort": {
+      "already_configured": "Home Assistant Email Bridge is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Home Assistant Email Bridge options",
+        "description": "Update recipient mappings. The fake email local part, such as dad in dad@ha-notify.local, is matched to these keys.",
+        "data": {
+          "default_notify_service": "Default notify service",
+          "recipients": "Recipients JSON"
+        }
+      }
+    },
+    "error": {
+      "invalid_recipients": "Recipients must be valid JSON. Each recipient needs a notify_service such as notify.mobile_app_dads_iphone or persistent_notification.create."
+    }
+  }
+}

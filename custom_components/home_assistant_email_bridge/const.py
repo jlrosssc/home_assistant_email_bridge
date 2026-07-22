@@ -1,0 +1,19 @@
+DOMAIN = "home_assistant_email_bridge"
+
+CONF_WEBHOOK_ID = "webhook_id"
+CONF_RECIPIENTS = "recipients"
+CONF_DEFAULT_NOTIFY_SERVICE = "default_notify_service"
+CONF_CREATE_PERSISTENT = "create_persistent_notification"
+
+DEFAULT_WEBHOOK_ID = "ha_email_bridge"
+DEFAULT_NOTIFY_SERVICE = "persistent_notification.create"
+DEFAULT_RECIPIENTS = {
+    "dad": {
+        "notify_service": "persistent_notification.create",
+        "title_prefix": "",
+    },
+    "critical": {
+        "notify_service": "persistent_notification.create",
+        "title_prefix": "Critical: ",
+    },
+}

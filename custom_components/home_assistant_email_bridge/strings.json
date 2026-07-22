@@ -23,13 +23,13 @@
     "step": {
       "init": {
         "title": "Home Assistant Email Bridge options",
-        "description": "Manage fake email recipients and their Home Assistant notify services.",
+        "description": "Manage endpoint/users. Each endpoint is a local fake email address mapped to one or more Home Assistant notification targets.",
         "menu_options": {
           "view_addresses": "View local email addresses",
-          "add_recipient": "Add or update recipient",
-          "edit_recipient": "Edit recipient",
-          "remove_recipient": "Remove recipient",
-          "send_test": "Send test notification",
+          "add_recipient": "Add endpoint/user",
+          "edit_recipient": "Edit endpoint/user",
+          "send_test": "Test endpoint/user",
+          "remove_recipient": "Remove endpoint/user",
           "edit_json": "Edit raw JSON"
         }
       },
@@ -38,45 +38,51 @@
         "description": "Use these settings for a server-based device or service on the Home Assistant host:\n\nSMTP server: {smtp_host}\nSMTP port: {smtp_port}\nSecurity: none\nAuthentication: none\n\nConfigured recipients:\n{addresses}"
       },
       "add_recipient": {
-        "title": "Add or update recipient",
-        "description": "The recipient name is the fake email local part, such as dad in dad@ha-notify.local. The notify service list is populated from active Home Assistant notify services.",
+        "title": "Add endpoint/user",
+        "description": "Create one endpoint/user. The endpoint name is the fake email local part, such as dad in dad@ha-notify.local. Choose the Home Assistant notification target from the list.",
         "data": {
-          "recipient": "Recipient name",
-          "emails": "Fake email aliases",
-          "notify_service": "Notify service",
+          "recipient": "Endpoint/user name",
+          "emails": "Accepted local email addresses",
+          "notify_service": "Primary notification target",
           "fallback_services": "Fallback services",
           "title_prefix": "Title prefix"
         }
       },
       "edit_recipient": {
-        "title": "Edit recipient",
-        "description": "Choose one configured recipient to edit.",
+        "title": "Edit endpoint/user",
+        "description": "Choose one configured endpoint/user to edit.",
         "data": {
-          "recipient": "Recipient"
+          "recipient": "Endpoint/user"
         }
       },
       "edit_selected_recipient": {
         "title": "Edit {recipient}",
-        "description": "Update this recipient's fake email aliases and Home Assistant notification targets.",
+        "description": "Update this endpoint/user's accepted email addresses and Home Assistant notification targets.",
         "data": {
-          "emails": "Fake email aliases",
-          "notify_service": "Notify service",
+          "emails": "Accepted local email addresses",
+          "notify_service": "Primary notification target",
           "fallback_services": "Fallback services",
           "title_prefix": "Title prefix"
         }
       },
       "remove_recipient": {
-        "title": "Remove recipient",
-        "description": "Remove a fake email recipient mapping.",
+        "title": "Remove endpoint/user",
+        "description": "Remove a fake email endpoint/user mapping.",
         "data": {
-          "recipient": "Recipient"
+          "recipient": "Endpoint/user"
         }
       },
       "send_test": {
-        "title": "Send test notification",
-        "description": "Send a fully formed test message through the same dispatch path used by the SMTP bridge.",
+        "title": "Test endpoint/user",
+        "description": "Choose the endpoint/user that should receive the test.",
         "data": {
-          "recipient": "Recipient",
+          "recipient": "Endpoint/user"
+        }
+      },
+      "send_test_message": {
+        "title": "Send full test message to {recipient}",
+        "description": "This sends through the same dispatch path used by a real SMTP message. The destination email defaults to this endpoint/user's primary local email address.",
+        "data": {
           "recipient_address": "Destination email address",
           "source": "Source",
           "from_address": "From address",

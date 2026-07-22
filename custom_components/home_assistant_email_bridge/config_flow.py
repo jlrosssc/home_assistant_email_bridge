@@ -181,6 +181,7 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         self._config_entry = config_entry
         self._edit_recipient_key: str | None = None
+        self._test_recipient_key: str | None = None
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         """Show the options menu."""
@@ -190,8 +191,8 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
                 "view_addresses",
                 "add_recipient",
                 "edit_recipient",
-                "remove_recipient",
                 "send_test",
+                "remove_recipient",
                 "edit_json",
             ],
         )
@@ -221,7 +222,7 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
         self,
         user_input: dict[str, Any] | None = None,
     ):
-        """Add or update a recipient mapping."""
+        """Add an endpoint/user mapping."""
         errors: dict[str, str] = {}
         current = _current_config(self._config_entry)
         recipients = dict(current.get(CONF_RECIPIENTS, {}))
@@ -449,8 +450,7 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
         )
 
     async def async_step_send_test(self, user_input: dict[str, Any] | None = None):
-        """Send a fully formed test message through the normal dispatch path."""
-        errors: dict[str, str] = {}
+        """Choose an endpoint/user for a fully formed test message."""
         current = _current_config(self._config_entry)
         recipients = current.get(CONF_RECIPIENTS, {})
         recipient_names = sorted(recipients)
@@ -463,40 +463,60 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
             )
 
         if user_input is not None:
-            recipient_name = user_input["recipient"]
-            recipient = recipients.get(recipient_name)
-            if recipient is None:
-                errors["recipient"] = "required"
-            else:
-                from . import _async_dispatch_message
+            self._test_recipient_key = user_input["recipient"]
+            return await self.async_step_send_test_message()
 
-                result = await _async_dispatch_message(
-                    self.hass,
-                    current,
-                    {
-                        "to": recipient_name,
-                        "recipient_address": user_input["recipient_address"],
-                        "source": user_input["source"],
-                        "from": user_input["from_address"],
-                        "severity": user_input["severity"],
-                        "subject": user_input["subject"],
-                        "message": user_input["message"],
-                        "dedupe_key": (
-                            f"ha-ui-test:{recipient_name}:{user_input['subject']}"
-                        ),
-                    },
-                )
-                if result.get("ok"):
-                    return self.async_create_entry(title="", data=current)
-                errors["base"] = "no_notify_service"
-
-        default_recipient = recipient_names[0]
-        default_address = _primary_email(default_recipient, recipients[default_recipient])
         return self.async_show_form(
             step_id="send_test",
             data_schema=vol.Schema(
                 {
                     vol.Required("recipient"): vol.In(recipient_names),
+                }
+            ),
+        )
+
+    async def async_step_send_test_message(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ):
+        """Send a fully formed test message through the normal dispatch path."""
+        errors: dict[str, str] = {}
+        current = _current_config(self._config_entry)
+        recipients = current.get(CONF_RECIPIENTS, {})
+        recipient_name = self._test_recipient_key
+
+        if not recipient_name or recipient_name not in recipients:
+            return await self.async_step_send_test()
+
+        recipient = recipients[recipient_name]
+        if user_input is not None:
+            from . import _async_dispatch_message
+
+            result = await _async_dispatch_message(
+                self.hass,
+                current,
+                {
+                    "to": recipient_name,
+                    "recipient_address": user_input["recipient_address"],
+                    "source": user_input["source"],
+                    "from": user_input["from_address"],
+                    "severity": user_input["severity"],
+                    "subject": user_input["subject"],
+                    "message": user_input["message"],
+                    "dedupe_key": (
+                        f"ha-ui-test:{recipient_name}:{user_input['subject']}"
+                    ),
+                },
+            )
+            if result.get("ok"):
+                return self.async_create_entry(title="", data=current)
+            errors["base"] = "no_notify_service"
+
+        default_address = _primary_email(recipient_name, recipient)
+        return self.async_show_form(
+            step_id="send_test_message",
+            data_schema=vol.Schema(
+                {
                     vol.Required("recipient_address", default=default_address): str,
                     vol.Required("source", default="home_assistant_ui"): str,
                     vol.Required(
@@ -520,4 +540,5 @@ class HomeAssistantEmailBridgeOptionsFlow(config_entries.OptionsFlow):
                 }
             ),
             errors=errors,
+            description_placeholders={"recipient": recipient_name},
         )

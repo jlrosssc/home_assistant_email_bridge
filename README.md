@@ -84,16 +84,16 @@ The integration asks for:
 
 - `webhook_id`: the local webhook path the SMTP bridge posts to.
 - `default_notify_service`: fallback notify service.
-- `recipients`: JSON mapping fake email recipients to HA notify services.
+- `recipients`: JSON mapping fake email endpoint/users to HA notify services.
 
-After setup, the integration creates one diagnostic sensor per recipient, such as:
+After setup, the integration creates one diagnostic sensor per endpoint/user, such as:
 
 ```text
 sensor.home_assistant_email_bridge_dad
 sensor.home_assistant_email_bridge_critical
 ```
 
-Each recipient entity shows the local fake email address, configured aliases, notify services, and title prefix. This makes established recipients visible in Home Assistant instead of hiding all of them only inside one settings list.
+Each endpoint/user entity shows the local fake email address, configured aliases, notify services, and title prefix. This makes established endpoints visible in Home Assistant instead of hiding all of them only inside one settings list.
 
 After setup, open:
 
@@ -104,10 +104,10 @@ Settings > Devices & services > Home Assistant Email Bridge > Configure
 Available actions:
 
 - `View local email addresses`: shows which fake email address a server or service should use.
-- `Add or update recipient`: creates a recipient and lets you pick an active notify service from a dropdown.
-- `Edit recipient`: edits one existing recipient at a time.
-- `Remove recipient`: deletes a mapping.
-- `Send test notification`: sends a fully formed test message with destination email, source, from address, severity, subject, and message body through the same dispatch path used by the SMTP bridge.
+- `Add endpoint/user`: creates one endpoint and lets you pick an active notify service from a dropdown.
+- `Edit endpoint/user`: chooses one existing endpoint first, then edits its email aliases and notification targets.
+- `Test endpoint/user`: chooses one endpoint first, then opens a full test-message form prefilled with that endpoint's destination email.
+- `Remove endpoint/user`: deletes one mapping.
 - `Edit raw JSON`: advanced bulk editing.
 
 Example recipient mapping:

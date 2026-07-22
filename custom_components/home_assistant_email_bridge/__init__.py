@@ -22,6 +22,39 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
+async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
+    """Set up Home Assistant Email Bridge from YAML."""
+    yaml_config = config.get(DOMAIN)
+    if not yaml_config:
+        return True
+
+    webhook_id = yaml_config[CONF_WEBHOOK_ID]
+
+    async def handle_webhook(
+        hass: HomeAssistant,
+        webhook_id: str,
+        request: web.Request,
+    ) -> web.Response:
+        try:
+            payload = await request.json()
+        except Exception as err:  # noqa: BLE001 - return clean webhook response
+            _LOGGER.warning("Invalid email bridge payload: %s", err)
+            return web.json_response({"ok": False, "error": "invalid_json"}, status=400)
+
+        result = await _async_dispatch_message(hass, yaml_config, payload)
+        return web.json_response(result)
+
+    webhook.async_register(
+        hass,
+        DOMAIN,
+        "Home Assistant Email Bridge",
+        webhook_id,
+        handle_webhook,
+        local_only=True,
+    )
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Home Assistant Email Bridge from a config entry."""
     webhook_id = entry.data[CONF_WEBHOOK_ID]
@@ -37,7 +70,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.warning("Invalid email bridge payload: %s", err)
             return web.json_response({"ok": False, "error": "invalid_json"}, status=400)
 
-        result = await _async_dispatch_message(hass, entry, payload)
+        result = await _async_dispatch_message(hass, {**entry.data, **entry.options}, payload)
         return web.json_response(result)
 
     webhook.async_register(
@@ -59,11 +92,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def _async_dispatch_message(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    config: dict[str, Any],
     payload: dict[str, Any],
 ) -> dict[str, Any]:
     """Dispatch a received bridge payload to the mapped notify target."""
-    config = {**entry.data, **entry.options}
     recipient_key = str(payload.get("to") or "").strip().lower()
     recipients = config.get(CONF_RECIPIENTS, {})
     recipient = recipients.get(recipient_key)
@@ -78,39 +110,65 @@ async def _async_dispatch_message(
         )
         return {"ok": False, "error": "unknown_recipient", "to": recipient_key}
 
-    notify_service = recipient.get("notify_service") or config.get(
-        CONF_DEFAULT_NOTIFY_SERVICE, DEFAULT_NOTIFY_SERVICE
-    )
+    notify_services = recipient.get("notify_services")
+    if not notify_services:
+        notify_services = [
+            recipient.get("notify_service")
+            or config.get(CONF_DEFAULT_NOTIFY_SERVICE, DEFAULT_NOTIFY_SERVICE)
+        ]
     title_prefix = recipient.get("title_prefix", "")
     subject = str(payload.get("subject") or "Server notification")
     message = _format_message(payload)
 
-    if notify_service == "persistent_notification.create":
+    delivered_service = None
+    last_error = None
+    for notify_service in notify_services:
+        if notify_service == "persistent_notification.create":
+            await _async_persistent(
+                hass,
+                f"{title_prefix}{subject}",
+                message,
+                f"home_assistant_email_bridge_{recipient_key}",
+            )
+            delivered_service = notify_service
+            break
+
+        domain, service = notify_service.split(".", 1)
+        if not hass.services.has_service(domain, service):
+            last_error = f"service_not_found:{notify_service}"
+            continue
+        try:
+            await hass.services.async_call(
+                domain,
+                service,
+                {
+                    "title": f"{title_prefix}{subject}",
+                    "message": message,
+                },
+                blocking=True,
+            )
+        except Exception as err:  # noqa: BLE001 - try fallback services
+            last_error = str(err)
+            continue
+        delivered_service = notify_service
+        break
+
+    if delivered_service is None:
         await _async_persistent(
             hass,
-            f"{title_prefix}{subject}",
-            message,
-            f"home_assistant_email_bridge_{recipient_key}",
+            f"Email bridge delivery failed: {subject}",
+            f"Recipient: {recipient_key}\nError: {last_error}\n\n{message}",
+            f"home_assistant_email_bridge_failed_{recipient_key}",
         )
-    else:
-        domain, service = notify_service.split(".", 1)
-        await hass.services.async_call(
-            domain,
-            service,
-            {
-                "title": f"{title_prefix}{subject}",
-                "message": message,
-            },
-            blocking=True,
-        )
+        return {"ok": False, "error": last_error, "to": recipient_key}
 
     _LOGGER.info(
         "Delivered email bridge message to %s via %s: %s",
         recipient_key,
-        notify_service,
+        delivered_service,
         subject,
     )
-    return {"ok": True, "to": recipient_key, "notify_service": notify_service}
+    return {"ok": True, "to": recipient_key, "notify_service": delivered_service}
 
 
 def _format_message(payload: dict[str, Any]) -> str:

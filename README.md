@@ -121,6 +121,31 @@ notify.mobile_app_dads_iphone
 
 The Home Assistant webhook is registered as `local_only`, so Home Assistant will reject non-local webhook calls. Keep the SMTP bridge local too unless you intentionally need LAN/container access.
 
+## Optional YAML Setup
+
+You can also configure the receiver in `configuration.yaml`:
+
+```yaml
+home_assistant_email_bridge:
+  webhook_id: ha_email_bridge_dad
+  default_notify_service: persistent_notification.create
+  recipients:
+    dad:
+      notify_services:
+        - notify.mobile_app_joe_ross_iphone
+        - notify.mobile_app_joe_ross_iphone_2
+        - persistent_notification.create
+      title_prefix: ""
+    critical:
+      notify_services:
+        - notify.mobile_app_joe_ross_iphone
+        - notify.mobile_app_joe_ross_iphone_2
+        - persistent_notification.create
+      title_prefix: "Critical: "
+```
+
+`notify_services` are tried in order. This is useful when Home Assistant has duplicate or renamed Companion App devices.
+
 ## Install
 
 Create the app directory:
